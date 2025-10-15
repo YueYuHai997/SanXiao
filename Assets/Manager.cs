@@ -15,9 +15,11 @@ using UnityEngine.UI;
 using System.IO;
 using System.Threading.Tasks;
 using DG.Tweening;
+using Unity.VisualScripting;
 
 public enum IconType
 {
+    None,
     Attack,
     Defend,
     Skill,
@@ -54,46 +56,75 @@ public class Manager : MonoBehaviour
     public Text DefendText;
     public Text SkillText;
     public Text BufferText;
-    
+
     public int AttackValue;
     public int DefendValue;
     public int SkillValue;
     public int BufferValue;
     
+    public RollingNumbers attackRollingNumbers;
+    public RollingNumbers defendRollingNumbers;
+    public RollingNumbers skillRollingNumbers;
+    public RollingNumbers bufferRollingNumbers;
+
+
+    private Pool<IconItem> IconItems;
+
+    private Rule _rule;
+    private MatchingRule Rules;
     
     private void Awake()
     {
         Icons = new IconItem[Resolution_X][];
-
+        IconItems = new Pool<IconItem>(Prefab, this.transform, Resolution_X * Resolution_Y);
+        
         for (int i = 0; i < Resolution_X; i++)
         {
             Icons[i] = new IconItem[Resolution_Y]; // 为每一行初始化第二维数组
             for (int j = 0; j < Resolution_Y; j++)
             {
+                int Ti, Tj;
+                Ti = i;
+                Tj = j;
+                IconItems.GetObject((item) =>
+                {
+                    item.SetICon(RandomColor());
+                    item.SetXY(Ti, Tj);
+                    Icons[Ti][Tj] = item;
+                });
+                
+                /*
                 var item = GameObject.Instantiate<IconItem>(Prefab, this.transform);
                 item.SetICon(RandomColor());
                 item.SetXY(i, j);
                 Icons[i][j] = item;
+                */
+                
             }
         }
+        
+        _rule = new PerfectDefense();
+        Rules = new MatchingRule(_rule);
     }
 
 
-    private async void DestroyIcon()
+    public async void DestroyIcon()
     {
-        Debug.Log(DestroyIcons.Count);
-
+        int DelayTime = 100;
         foreach (var item in DestroyIcons)
         {
             var destroyItem = item;
             destroyItem.Move(GetRange(destroyItem.iconType), () =>
             {
-                AttackValue++;
-                AttackText.text = AttackValue.ToString();
+                attackRollingNumbers.SetNumber(AttackValue++);
+                //AttackText.text = AttackValue.ToString();
+                IconItems.DestObject(destroyItem);
+                Icons[destroyItem.x][destroyItem.y] = null;
             });
-            await Task.Delay(50);
+            await Task.Delay(DelayTime);
+            DelayTime = DelayTime > 10 ? DelayTime - 5 : DelayTime;
         }
-        
+
         DestroyIcons.Clear();
     }
 
@@ -105,8 +136,8 @@ public class Manager : MonoBehaviour
         IconType.Skill => SkillRange.transform.position,
         IconType.Buffer => BufferRange.transform.position,
     };
-    
-    private void FallIcon()
+
+    public void FallIcon()
     {
         for (int i = 0; i < Icons.Length; i++)
         {
@@ -122,30 +153,51 @@ public class Manager : MonoBehaviour
                         {
                             minj = k;
                         }
-
                         k--;
                     }
-
-                    Icons[i][j].Fall(minj);
-                    Icons[i][minj] = Icons[i][j];
-                    Icons[i][j] = null;
+                    if (minj != j)
+                    {
+                        Icons[i][j].Fall(minj);
+                        Icons[i][minj] = Icons[i][j];
+                        Icons[i][j] = null;
+                    }
                 }
             }
         }
     }
 
+
+    
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.A))
         {
+            /*
             Jugde();
             Debug.Log("Exec");
             DestroyIcon();
+            */
+
+            var items = Rules.Judge(Icons);
+            Debug.Log(items is null);
+        
+            for (int i = 0; i < items.Count; i++)
+            {
+                items[i].HeightLight();
+            }
+
         }
 
         if (Input.GetKeyDown(KeyCode.S))
         {
-            FallIcon();
+            for (int i = 0; i < Icons.Length; i++)
+            {
+                for (int j = 0; j < Icons[0].Length; j++)
+                {
+                    Icons[i][j].HeightResume();
+                }
+            }
+            //FallIcon();
         }
 
 
@@ -188,7 +240,7 @@ public class Manager : MonoBehaviour
         }
     }
 
-    void Resume()
+    public void Resume()
     {
         for (int i = 0; i < Icons.Length; i++)
         {
@@ -203,10 +255,22 @@ public class Manager : MonoBehaviour
                 }
                 else
                 {
+                    int Ti, Tj;
+                    Ti = i;
+                    Tj = j;
+                    IconItems.GetObject((item) =>
+                    {
+                        item.SetICon(RandomColor());
+                        item.SetXY(Ti, Tj);
+                        Icons[Ti][Tj] = item;
+                    });
+                    
+                    /*
                     var item = GameObject.Instantiate<IconItem>(Prefab, this.transform);
                     item.SetICon(RandomColor());
                     item.SetXY(i, j);
                     Icons[i][j] = item;
+                    */
                 }
             }
         }
@@ -269,7 +333,7 @@ public class Manager : MonoBehaviour
     }
 
 
-    private void Jugde()
+    public void Jugde()
     {
         //判断Y / 列
         for (int i = 0; i < Resolution_X; i++)

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Random = UnityEngine.Random;
 using DG.Tweening;
 
-public class IconItem : MonoBehaviour
+public class IconItem : MonoBehaviour, IPoolBase
 {
     public Color IconColor;
 
@@ -22,20 +22,27 @@ public class IconItem : MonoBehaviour
     public void Fall(int j)
     {
         y = j;
-        this.transform.position = new Vector2(x * 110, y * 110);
+
+        //this.transform.position = new Vector2(x * 110, y * 110);
         //text.text = $"x:{x}\ny:{y}";
+
+        this.transform.DOMoveY(y * 110, .2f).SetEase(Ease.InQuart);
     }
 
+    public void HeightLight()
+    {
+        this.GetComponent<Image>().color = Color.red;
+    }
+    public void HeightResume()
+    {
+        this.GetComponent<Image>().color = Color.white;
+    }
 
     public void SetDestroy()
     {
         // text.color = Color.red;;
     }
 
-    public void SetResume()
-    {
-        //  text.color = Color.black;;
-    }
 
     public void SetICon(IconType type)
     {
@@ -55,27 +62,26 @@ public class IconItem : MonoBehaviour
         P2 = Tag + Random.insideUnitSphere * 500f;
         P3 = Tag;
 
+        //this.transform.DOLocalRotate(new Vector3(0, 360, 0), 0.5f, RotateMode.LocalAxisAdd); // 参数 true 表示“不归一化角度”;
+        
         var currentValue = 0f;
         DOTween.To(
             () => currentValue, // 读取当前值的回调
             x => currentValue = x, // 更新值的回调
             1f, // 目标值
             1f // 动画持续时间（秒）
-        ).OnUpdate(() =>
-        {
-            MoveBZR3(currentValue);
-        }).OnComplete(() =>
+        ).OnUpdate(() => { MoveBZR3(currentValue); }).OnComplete(() =>
         {
             action?.Invoke();
-            Destroy(this.gameObject);
+            // Destroy(this.gameObject);
         });
     }
 
     private void MoveBZR3(float t)
     {
         this.transform.position = P0 * Mathf.Pow(1 - t, 3) +
-                                  3 * P1 * t * Mathf.Pow(1 - t, 2) +
-                                  3 * P2 * t * t * (1 - t) +
+                                  P1 * (3 * t * Mathf.Pow(1 - t, 2)) +
+                                  P2 * (3 * t * t * (1 - t)) +
                                   P3 * Mathf.Pow(t, 3);
     }
 
@@ -89,4 +95,18 @@ public class IconItem : MonoBehaviour
     }
 
 
+    public bool IsUse { get; set; }
+    public int Num { get; set; }
+
+    public void Get()
+    {
+        IsUse = true;
+        this.gameObject.SetActive(true);
+    }
+
+    public void Release()
+    {
+        IsUse = false;
+        this.gameObject.SetActive(false);
+    }
 }
