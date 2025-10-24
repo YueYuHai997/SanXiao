@@ -17,6 +17,13 @@ public class DebugHelper : MonoBehaviour
     private void Awake()
     {
         _originalTimeScale = Time.timeScale;
+
+
+        PlayFactor<PlayerData> factor = new();
+        var all = factor.GetAllPlayer();
+        Debug.Log(all[0].NikeName);
+        Debug.Log(all[1].NikeName);
+        
     }
 
     private void Update()
